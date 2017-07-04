@@ -1,2 +1,6 @@
 # dns_tests
-Scipts to perform handy testing of DNS servers
+Scripts to perform handy testing of DNS servers.
+TOOLS used:
+
+- Resperf
+- Dig
