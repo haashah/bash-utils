@@ -21,7 +21,7 @@ done
 }
 
 if [[ $# -lt 1 ]]; then
-  echo 'invalid number of arguments. Must mention number of interfaces to create or cleanup with --cleanup flag'
+  echo 'ERROR: Invalid number of arguments. Must mention number of interfaces to create or cleanup with --cleanup flag'
   echo 'usage: e.g  sudo ./setup-vip.sh 5, sudo ./setup-vip.sh --cleanup'
   exit 1
 elif [[ $# -eq 2 ]]; then
@@ -42,16 +42,16 @@ if [[ "$cleanup" == true ]]; then
   cleanup $ifc
   exit 0
 fi
+echo -e "\n\n------- CREATING VIPS ---------\n\n"
 for x in $(seq 1 $num_ifcs); do
-  echo "adding sub interface #$x"
+  echo "Adding sub interface #$x"
   last_octet=$(($last_octet+1))
-  echo $last_octet
   new_ip=$three_octets$last_octet"/"$mask
+  echo "Assigning new ip address: $new_ip"
   list_ips+=($three_octets$last_octet)
-  echo "new ip_addr value: $new_ip"
   ifconfig $ifc:$x $new_ip 
   if [[ $? -ne 0 ]]; then
-    echo 'Failed to create subinterface'
+    echo 'ERROR: Failed to create subinterface'
     exit 1
   fi
 done
@@ -59,14 +59,19 @@ done
 #echo "DEBUG: list of ips ${list_ips[*]}"
 
 # time to add values to powerDNS config file
+echo "Changing powerDNS config with new virtual ips"
 sed -i "s/\(local-address *= *\).*/\1${list_ips[*]}/" /etc/powerdns/recursor.conf
 
 # restart powerDNS service
+echo "Restarting powerDNS service"
 systemctl restart pdns-recursor
+
+sleep 3
+
 
 if [[ $? -ne 0 ]]; then
   echo 'powerDNS failed to restart'
   exit 1
 fi
 
-
+echo -e "\n\n------- SETUP DONE ----------"
