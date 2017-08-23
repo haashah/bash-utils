@@ -12,26 +12,45 @@
 
 function cleanup {
 
-ifc_name=$1
-for x in $(seq 1 $num_ifcs); do
-  echo "cleaning up interface $ifc_name:$x"
-  ifconfig $ifc_name:$x down  
-done
+  ifc_name=$1
+  for x in $(seq 1 $num_ifcs); do
+    echo "cleaning up interface $ifc_name:$x"
+    ifconfig $ifc_name:$x down  
+  done
 
 }
 
-if [[ $# -lt 1 ]]; then
-  echo 'ERROR: Invalid number of arguments. Must mention number of interfaces to create or cleanup with --cleanup flag'
-  echo 'usage: e.g  sudo ./setup-vip.sh 5, sudo ./setup-vip.sh --cleanup'
-  exit 1
-elif [[ $# -eq 2 ]]; then
-  num_ifcs=$1
-  cleanup=true
-else
-  num_ifcs=$1
-  cleanup=false
-fi
+#DEFAULT ARG VALUES
+num_ifcs=1
+file_path="/etc/powerdns/recursor.conf"
+cleanup=false
 ifc=$(ip route get 8.8.8.8 | awk '/dev/ {print $5}')
+
+for i in "$@"; do
+	case $i in
+		-n=*|--numifcs=*)
+		num_ifcs="${i#*=}"
+		shift # past argument=value
+		;;
+		-fp=*|--filepath=*)
+		file_path="${i#*=}"
+		shift # past argument=value
+		;;
+		-c|--cleanup)
+		cleanup=true
+		shift # past argument=value
+		;;
+        -i=*|--interface=*)
+        ifc="${i#*=}"
+        shift
+        ;;
+		*)
+		echo "Unknown parameter $i"        # unknown option
+		exit 1
+		;;
+	esac
+done
+  
 ip_addr=$(ip -o -f inet addr show | awk '/'$ifc'/ {print $4}')
 three_octets=$(echo $ip_addr | awk 'BEGIN {FS="[./]";} {print $1"."$2"."$3"."}')
 last_octet=$(echo $ip_addr | awk 'BEGIN { FS="[./]"; } {print $4}')
@@ -60,7 +79,7 @@ done
 
 # time to add values to powerDNS config file
 echo "Changing powerDNS config with new virtual ips"
-sed -i "s/\(local-address *= *\).*/\1${list_ips[*]}/" /etc/powerdns/recursor.conf
+sed -i "s/\(local-address *= *\).*/\1${list_ips[*]}/" $file_path 
 
 # restart powerDNS service
 echo "Restarting powerDNS service"
